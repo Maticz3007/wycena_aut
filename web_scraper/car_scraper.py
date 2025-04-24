@@ -29,7 +29,7 @@ def get_element_text(locator):
         return element.text.strip()
     except StaleElementReferenceException:
          logging.error("%s failed to load", locator)
-         return StaleElementReferenceException('Element not found')
+         return Exception('Element not found')
 
 
 
@@ -39,7 +39,7 @@ def get_elements_text(locator):
         return [element.text.strip() for element in elements]
     except StaleElementReferenceException:
         logging.error("%s failed to load", locator)
-        return StaleElementReferenceException('Element not found')
+        return Exception('Element not found')
 
 
 
@@ -72,17 +72,11 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
         "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
     ]}
 
-    id = ad_id.replace("ID:", "").strip()
-    if id in existing_ids:
-        logging.info("ID %s already exists, skipping.", id)
-        return
-
-
     specs_copy = specs.splitlines().copy()
     for item in specs_copy[1:]:
         key, value = item.split(": ")
         dictionary[key.strip()] = value.strip()
-
+    id = ad_id.replace("ID:", "").strip()
     dictionary["ID"] = id
     dictionary["Producent"] = brand
     dictionary["Cena"] = price.replace("zł", "").replace(" ", "").strip()
@@ -98,17 +92,14 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
     dictionary["Link"] = url
     dictionary["Opis"] = description.replace("OPIS\n", "").strip()
 
-    logging.info("ID %s not found, adding to file.", id)
-
-
     with open(CSV_TARGET, mode="a", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=dictionary.keys())
-
         if file.tell() == 0:
             writer.writeheader()
 
         writer.writerow(dictionary)
-    existing_ids.add(id)
+    logging.info("%s: ID %s added to file.", url, id)
+    existing_links.add(url)
     return
 
 
@@ -136,7 +127,8 @@ def get_ads():
         except NoSuchElementException:
             logging.warning("Scraper reached the last page of listings.")
             break
-
+    if(len(links)==0):
+        pass
     logging.info("Scraper found a total of %s URLs to scrape from.", len(links))
     return links
 
@@ -145,23 +137,23 @@ def init_driver():
     options.add_argument("--headless")
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-def get_exisiting_IDs():
-    existing_ids = set()
+def get_existing_links():
+    existing_links = set()
     try:
         with open(CSV_TARGET, mode="r", newline="", encoding="utf-8") as file:
             reader = csv.DictReader(file)
             for row in reader:
-                existing_ids.add(row["ID"])
+                existing_links.add(row["Link"])
     except FileNotFoundError:
         pass
-    return existing_ids
+    return existing_links
 
 # "main"
 
 
 driver = init_driver()
 wait = WebDriverWait(driver, 20)
-existing_ids=get_exisiting_IDs()
+existing_links=get_existing_links()
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', encoding="utf-8",
                     handlers=[logging.StreamHandler(), logging.FileHandler("scrape.log")],
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -170,9 +162,12 @@ try:
     logging.info("Scraper active.")
     while True:
         for link in get_ads():
-            scrape_url(link)
-        logging.info("Scrape complete; waiting for 60 minutes before trying again...")
-        time.sleep(60 * 60)
+            if link not in existing_links:
+                scrape_url(link)
+            else:
+                logging.info("%s has already been processed, skipping.", link)
+        #logging.info("Scrape complete; waiting for 60 minutes before trying again...")
+        #time.sleep(60 * 60)
 except KeyboardInterrupt:
     logging.critical("Scraper stopped by user")
     driver.quit()
