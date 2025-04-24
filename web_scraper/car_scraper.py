@@ -1,5 +1,5 @@
 import logging
-
+from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -23,24 +23,24 @@ CSS_SELECTORS = {
 }
 
 
-def get_element_text(locator, retries=5):
-    for i in range(retries):
-        try:
-            element = wait.until(EC.presence_of_element_located(locator))
-            return element.text.strip()
-        except StaleElementReferenceException:
-            continue
-    return Exception('Element not found')
+def get_element_text(locator):
+    try:
+        element = wait.until(EC.presence_of_element_located(locator))
+        return element.text.strip()
+    except StaleElementReferenceException:
+         logging.error("%s failed to load", locator)
+         return StaleElementReferenceException('Element not found')
 
 
-def get_elements_text(locator, retries=5):
-    for i in range(retries):
-        try:
-            elements = wait.until(EC.presence_of_all_elements_located(locator))
-            return [element.text.strip() for element in elements]
-        except StaleElementReferenceException:
-            continue
-    return Exception('Element not found')
+
+def get_elements_text(locator):
+    try:
+        elements = wait.until(EC.presence_of_all_elements_located(locator))
+        return [element.text.strip() for element in elements]
+    except StaleElementReferenceException:
+        logging.error("%s failed to load", locator)
+        return StaleElementReferenceException('Element not found')
+
 
 
 def scrape_url(url):
@@ -53,7 +53,6 @@ def scrape_url(url):
         title = get_element_text((By.CSS_SELECTOR, CSS_SELECTORS["title"]))
         ad_id = get_element_text((By.CSS_SELECTOR, CSS_SELECTORS["ad_id"]))
         breadcrumbs = get_elements_text((By.CSS_SELECTOR, CSS_SELECTORS["breadcrumbs"]))
-        # date = get_element_text((By.CSS_SELECTOR, 'span[data-cy="ad-posted-at"]')) #czasami jest data, czasami jest "dzisiaj o ...", nie są to dane potrzebme
         if len(breadcrumbs) >= 4:
             brand = breadcrumbs[3]
         else:
@@ -72,13 +71,13 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
         "Moc silnika", "Napęd", "Kierownica", "Cena", "Lokalizacja", "Województwo",
         "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
     ]}
+
     id = ad_id.replace("ID:", "").strip()
-    logging.info("Processing ID %s", id)
-
-
     if id in existing_ids:
         logging.info("ID %s already exists, skipping.", id)
         return
+
+
     specs_copy = specs.splitlines().copy()
     for item in specs_copy[1:]:
         key, value = item.split(": ")
@@ -98,7 +97,10 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
     dictionary["Znalezione o"] = datetime.now()
     dictionary["Link"] = url
     dictionary["Opis"] = description.replace("OPIS\n", "").strip()
+
     logging.info("ID %s not found, adding to file.", id)
+
+
     with open(CSV_TARGET, mode="a", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=dictionary.keys())
 
@@ -113,27 +115,29 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
 def get_ads():
     current_url = "https://www.olx.pl/motoryzacja/samochody/"
     links = []
-    for i in range(1, 26):
-        driver.get(current_url)
-        logging.info("Scraper obtained page %s.", i)
-        ads = driver.find_elements(By.CSS_SELECTOR, 'div[data-testid="l-card"]')
-        for ad in ads:
-            try:
-                link = ad.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
-                if (link.find("otomoto") == -1):
-                    links.append(link)
-            except Exception as e:
-                logging.critical(f"Error: {e}")
-        logging.info("Scraper found %s URLs to scrape from.", len(ads))
+    i=0
+    while True:
         try:
-            current_url = driver.find_element(By.CSS_SELECTOR, 'a[data-testid="pagination-forward"]').get_attribute('href')
-        except Exception as e:
-            if i==25:
-                logging.info("Scraper obtained all available pages.")
-            else:
-                logging.error("Scraper failed to find next page, current page = %s", i)
-    logging.info("Scraper found a total of %s URLs to scrape from.", len(links))
+            i=i+1
+            driver.get(current_url)
+            logging.info("Scraper obtained page %s.", i)
+            ads = driver.find_elements(By.CSS_SELECTOR, 'div[data-testid="l-card"]')
 
+            for ad in ads:
+                try:
+                    link = ad.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
+                    if (link.find("otomoto") == -1):
+                        links.append(link)
+                except Exception as e:
+                    logging.critical(f"Error: {e}")
+
+            current_url = driver.find_element(By.CSS_SELECTOR, 'a[data-testid="pagination-forward"]').get_attribute('href')
+
+        except NoSuchElementException:
+            logging.warning("Scraper reached the last page of listings.")
+            break
+
+    logging.info("Scraper found a total of %s URLs to scrape from.", len(links))
     return links
 
 def init_driver():
@@ -141,38 +145,37 @@ def init_driver():
     options.add_argument("--headless")
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
+def get_exisiting_IDs():
+    existing_ids = set()
+    try:
+        with open(CSV_TARGET, mode="r", newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                existing_ids.add(row["ID"])
+    except FileNotFoundError:
+        pass
+    return existing_ids
 
 # "main"
 
 
 driver = init_driver()
-wait = WebDriverWait(driver, 30)
+wait = WebDriverWait(driver, 20)
+existing_ids=get_exisiting_IDs()
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', encoding="utf-8",
                     handlers=[logging.StreamHandler(), logging.FileHandler("scrape.log")],
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-existing_ids = set()
-try:
-    with open(CSV_TARGET, mode="r", newline="", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            existing_ids.add(row["ID"])
-except FileNotFoundError:
-    pass
-
-
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 try:
-    logging.warning("Scraper active.")
+    logging.info("Scraper active.")
     while True:
         for link in get_ads():
             scrape_url(link)
-        logging.warning("Scrape complete; waiting for 6 hours before trying again...")
-        logging.info("Consider running the scraper manually sometime later.")
-        time.sleep(6 * 60 * 60)
+        logging.info("Scrape complete; waiting for 60 minutes before trying again...")
+        time.sleep(60 * 60)
 except KeyboardInterrupt:
     logging.critical("Scraper stopped by user")
     driver.quit()
-    exit(1)
+
 
 
