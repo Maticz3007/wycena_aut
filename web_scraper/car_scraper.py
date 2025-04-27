@@ -21,7 +21,12 @@ CSS_SELECTORS = {
     "ad_id": 'span[class="css-w85dhy"]',
     "breadcrumbs": 'ol[data-testid="breadcrumbs"] li',
 }
-
+BASE_DICTIONARY = {column: "" for column in [
+        "Numer VIN", "Model", "Rok produkcji", "Paliwo", "Typ nadwozia", "Przebieg",
+        "Kolor", "Poj. silnika", "Stan techniczny", "Skrzynia biegów", "Kraj pochodzenia",
+        "Moc silnika", "Napęd", "Kierownica", "Cena", "Lokalizacja", "Województwo",
+        "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
+    ]}
 
 def get_element_text(locator):
     try:
@@ -65,13 +70,7 @@ def scrape_url(url):
 
 
 def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
-    dictionary = {column: "" for column in [
-        "Numer VIN", "Model", "Rok produkcji", "Paliwo", "Typ nadwozia", "Przebieg",
-        "Kolor", "Poj. silnika", "Stan techniczny", "Skrzynia biegów", "Kraj pochodzenia",
-        "Moc silnika", "Napęd", "Kierownica", "Cena", "Lokalizacja", "Województwo",
-        "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
-    ]}
-
+    dictionary = BASE_DICTIONARY
     specs_copy = specs.splitlines().copy()
     for item in specs_copy[1:]:
         key, value = item.split(": ")
@@ -166,8 +165,6 @@ try:
                 scrape_url(link)
             else:
                 logging.info("%s has already been processed, skipping.", link)
-        #logging.info("Scrape complete; waiting for 60 minutes before trying again...")
-        #time.sleep(60 * 60)
 except KeyboardInterrupt:
     logging.critical("Scraper stopped by user")
     driver.quit()
