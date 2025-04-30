@@ -51,15 +51,3 @@ cars_accepted = cars_accepted[cars_accepted["Cena"] >= 1000]
 
 cars_accepted.to_csv("cars_cleaned.csv", index=False)
 cars_accepted.info()
-cars_rejected = pd.read_csv(CSV_TARGET)
-cars_rejected["Numer VIN"] = cars_rejected["Numer VIN"].astype(str).apply(clear_invalid_VIN_numbers)
-cars_rejected["Czy cena do negocjacji"] = cars_rejected["Cena"].astype(str).apply(is_price_negotiable)
-cars_rejected["Cena"] = cars_rejected["Cena"].astype(str).apply(clean_price).astype(float)
-rental_mask = cars_rejected.apply(is_a_rental, axis=1)
-cars_rejected = cars_rejected[~rental_mask]
-cars_rejected.info()
-
-cars_rejected = pd.concat([cars_rejected, cars_accepted]).drop_duplicates(keep=False)
-
-# Save the discarded data to a new CSV file
-cars_rejected.to_csv("cars_discarded.csv", index=False)

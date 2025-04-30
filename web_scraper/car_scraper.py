@@ -9,7 +9,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from datetime import datetime
 import csv
-import time
 
 CSV_TARGET = "cars.csv"
 CSS_SELECTORS = {
@@ -27,7 +26,7 @@ BASE_DICTIONARY = {column: "" for column in [
         "Moc silnika", "Napęd", "Kierownica", "Cena", "Lokalizacja", "Województwo",
         "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
     ]}
-
+TARGET_URL = "https://www.olx.pl/motoryzacja/samochody/"
 def get_element_text(locator):
     try:
         element = wait.until(EC.presence_of_element_located(locator))
@@ -72,38 +71,44 @@ def scrape_url(url):
 def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
     dictionary = BASE_DICTIONARY.copy()
     specs_copy = specs.splitlines().copy()
+
+    dictionary["Rodzaj ogłoszenia"] = specs_copy[0]
     for item in specs_copy[1:]:
         key, value = item.split(": ")
         dictionary[key.strip()] = value.strip()
-    id = ad_id.replace("ID:", "").strip()
-    dictionary["ID"] = id
+
+
+    dictionary["ID"] = ad_id.replace("ID:", "").strip()
     dictionary["Producent"] = brand
     dictionary["Cena"] = price.replace("zł", "").replace(" ", "").strip()
-    place = location.replace("LOKALIZACJA", "").strip().split('\n')
-    dictionary["Lokalizacja"] = place[0].replace(",", "").strip()
-    dictionary["Województwo"] = place[1].strip()
     dictionary["Tytuł"] = title
-    dictionary["Przebieg"] = dictionary["Przebieg"].replace("km", "").replace(" ", "")
-    dictionary["Poj. silnika"] = dictionary["Poj. silnika"].replace("cm³", "").replace(" ", "")
-    dictionary["Moc silnika"] = dictionary["Moc silnika"].replace("KM", "").replace(" ", "")
-    dictionary["Rodzaj ogłoszenia"] = specs_copy[0]
     dictionary["Znalezione o"] = datetime.now()
     dictionary["Link"] = url
     dictionary["Opis"] = description.replace("OPIS\n", "").strip()
 
-    with open(CSV_TARGET, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=dictionary.keys())
-        if file.tell() == 0:
-            writer.writeheader()
+    place = location.replace("LOKALIZACJA", "").strip().split('\n')
+    dictionary["Lokalizacja"] = place[0].replace(",", "").strip()
+    dictionary["Województwo"] = place[1].strip()
 
-        writer.writerow(dictionary)
-    logging.info("%s: ID %s added to file.", url, id)
-    existing_links.add(url)
+    dictionary["Przebieg"] = dictionary["Przebieg"].replace("km", "").replace(" ", "")
+    dictionary["Poj. silnika"] = dictionary["Poj. silnika"].replace("cm³", "").replace(" ", "")
+    dictionary["Moc silnika"] = dictionary["Moc silnika"].replace("KM", "").replace(" ", "")
+
+    try:
+        with open(CSV_TARGET, mode="a", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=dictionary.keys())
+            if file.tell() == 0:
+                writer.writeheader()
+            writer.writerow(dictionary)
+        logging.info("%s: ID %s added to file.", url, dictionary["ID"])
+        existing_links.add(url)
+    except Exception as e:
+        logging.error("Failed to write data for %s, %s: %s", dictionary["ID"], url, e)
     return
 
 
 def get_ads():
-    current_url = "https://www.olx.pl/motoryzacja/samochody/"
+    current_url = TARGET_URL
     links = []
     i=0
     while True:
@@ -124,7 +129,7 @@ def get_ads():
             current_url = driver.find_element(By.CSS_SELECTOR, 'a[data-testid="pagination-forward"]').get_attribute('href')
 
         except NoSuchElementException:
-            logging.warning("Scraper reached the last page of listings.")
+            logging.warning("Scraper did not find the next page of listings.")
             break
     if(len(links)==0):
         pass
@@ -165,8 +170,6 @@ try:
                 scrape_url(link)
             else:
                 logging.info("%s has already been processed, skipping.", link)
-        #logging.info("Scrape complete; waiting for 60 minutes before trying again...")
-        #time.sleep(60 * 60)
 except KeyboardInterrupt:
     logging.critical("Scraper stopped by user")
     driver.quit()
