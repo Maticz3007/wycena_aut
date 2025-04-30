@@ -3,7 +3,7 @@ from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
@@ -27,13 +27,14 @@ BASE_DICTIONARY = {column: "" for column in [
         "Tytuł", "Rodzaj ogłoszenia", "Znalezione o", "Link", "ID", "Producent"
     ]}
 TARGET_URL = "https://www.olx.pl/motoryzacja/samochody/"
+
 def get_element_text(locator):
     try:
         element = wait.until(EC.presence_of_element_located(locator))
         return element.text.strip()
-    except StaleElementReferenceException:
-         logging.error("%s failed to load", locator)
-         return Exception('Element not found')
+    except (StaleElementReferenceException, TimeoutException) as e:
+        logging.warning("Element %s not found: %s", locator, e)
+        return Exception('Element not found')
 
 
 
@@ -41,8 +42,8 @@ def get_elements_text(locator):
     try:
         elements = wait.until(EC.presence_of_all_elements_located(locator))
         return [element.text.strip() for element in elements]
-    except StaleElementReferenceException:
-        logging.error("%s failed to load", locator)
+    except (StaleElementReferenceException, TimeoutException) as e:
+        logging.warning("Element %s not found: %s", locator, e)
         return Exception('Element not found')
 
 
@@ -107,24 +108,24 @@ def add_to_csv(specs, price, location, title, ad_id, brand, url, description):
     return
 
 
-def get_ads():
+def get_ads(max_pages=25):
     current_url = TARGET_URL
     links = []
-    i=0
-    while True:
+    page=0
+    while page < max_pages:
+        page += 1
         try:
-            i=i+1
             driver.get(current_url)
-            logging.info("Scraper obtained page %s.", i)
+            logging.info("Scraping page %s.", page)
             ads = driver.find_elements(By.CSS_SELECTOR, 'div[data-testid="l-card"]')
 
             for ad in ads:
                 try:
                     link = ad.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
-                    if (link.find("otomoto") == -1):
+                    if link.find("otomoto") == -1:
                         links.append(link)
                 except Exception as e:
-                    logging.critical(f"Error: {e}")
+                    logging.error("Failed to get link from ad: %s", e)
 
             current_url = driver.find_element(By.CSS_SELECTOR, 'a[data-testid="pagination-forward"]').get_attribute('href')
 
@@ -132,7 +133,7 @@ def get_ads():
             logging.warning("Scraper did not find the next page of listings.")
             break
     if(len(links)==0):
-        pass
+        logging.error("Scraper did not a single page of listings!")
     logging.info("Scraper found a total of %s URLs to scrape from.", len(links))
     return links
 
