@@ -157,7 +157,7 @@ def get_existing_links():
 
 
 driver = init_driver()
-wait = WebDriverWait(driver, 20)
+wait = WebDriverWait(driver, 5)
 existing_links=get_existing_links()
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', encoding="utf-8",
                     handlers=[logging.StreamHandler(), logging.FileHandler("scrape.log")],

@@ -28,8 +28,7 @@ def clean_price(price):
     return price.strip("\ndonegocjacji").replace(',', ".").strip()
 
 def is_a_rental(df):
-    return df['Cena'] <= 5000 and df['Rok produkcji'] >= 2015
-
+    return 'leasing' in df["Tytuł"].lower() or 'leasing' in df["Opis"].lower()
 
 df = pd.read_csv(CSV_SOURCE)
 df = df.dropna(subset=REQUIRED_COLUMNS)
@@ -51,7 +50,8 @@ df = df[
         (df["Przebieg"] >= 5000) &
         (df["Poj. silnika"] >= 500) & (df["Poj. silnika"] <= 7000) &
         (df["Moc silnika"] >= 20) & (df["Moc silnika"] <= 800) &
-        (df["Cena"] >= 1000) & (df["Paliwo"].isin(ACCEPTED_FUEL_TYPES))
+        (df["Cena"] >= 1000) & (df["Paliwo"].isin(ACCEPTED_FUEL_TYPES)) &
+        (df["Przebieg"] <= 600000)
 ]
 
 print(f"Created a file {CSV_OUTPUT} with {df.shape[0]} rows of data")
