@@ -48,8 +48,6 @@ def calculate_yearly_mileage(df):
 
 df = pd.read_csv(CSV_SOURCE)
 df = df.dropna(subset=REQUIRED_COLUMNS)
-df.drop(columns=["ID"], inplace=True)
-df.drop(columns=["Znalezione o"], inplace=True)
 
 df["Czy cena do negocjacji"] = df["Cena"].astype(str).apply(is_price_negotiable)
 df["Cena"] = df["Cena"].astype(str).apply(clean_price).astype(float)
@@ -74,6 +72,10 @@ df = df[
         (df["Roczny przebieg"] > 5000) &
         (df["Roczny przebieg"] < 36500)
 ]
+
+#df.drop(columns=["Roczny przebieg"], inplace=True)
+df.drop(columns=["ID"], inplace=True)
+df.drop(columns=["Znalezione o"], inplace=True)
 
 #df["Numer VIN"] = df["Numer VIN"].astype(str).apply(clear_invalid_VIN_numbers)
 
