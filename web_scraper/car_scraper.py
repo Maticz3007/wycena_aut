@@ -10,13 +10,13 @@ from selenium.webdriver.chrome.service import Service
 from datetime import datetime
 import csv
 
-CSV_TARGET = "cars.csv"
+CSV_TARGET = "../datasets/cars.csv"
 CSS_SELECTORS = {
     "ad_parameters": 'div[data-testid="ad-parameters-container"]',
     "description": 'div[data-testid="ad_description"]',
     "price": 'div[data-testid="ad-price-container"]',
     "location": 'div[class="css-13l8eec"]',
-    "title": 'div[data-testid="ad_title"]',
+    "title": 'div[data-testid="offer_title"]', # pomiędzy 25.05 a 28.05 nastąpiła zmiana
     "ad_id": 'span[class="css-w85dhy"]',
     "breadcrumbs": 'ol[data-testid="breadcrumbs"] li',
 }
