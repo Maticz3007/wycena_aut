@@ -53,6 +53,7 @@ df["Czy cena do negocjacji"] = df["Cena"].astype(str).apply(is_price_negotiable)
 df["Cena"] = df["Cena"].astype(str).apply(clean_price).astype(float)
 df["Roczny przebieg"] = df.apply(calculate_yearly_mileage, axis=1)
 df["Hashcode"] = df.apply(generate_hashcode, axis=1)
+df["Wiek"] = 2025 - df["Rok produkcji"]
 df = df.drop_duplicates(subset=["Hashcode"])
 df.drop(columns=["Hashcode"], inplace=True)
 
@@ -74,6 +75,7 @@ df = df[
 ]
 
 #df.drop(columns=["Roczny przebieg"], inplace=True)
+df.drop(columns=["Rok produkcji"], inplace=True)
 df.drop(columns=["ID"], inplace=True)
 df.drop(columns=["Znalezione o"], inplace=True)
 
@@ -82,5 +84,6 @@ df.drop(columns=["Znalezione o"], inplace=True)
 print(f"Created a file {CSV_OUTPUT} with {df.shape[0]} rows of data")
 df.to_csv(CSV_OUTPUT, index=False)
 
+print(df.sample(10))
 
 
