@@ -49,8 +49,13 @@ df["Cena"] = df["Cena"].astype(str).apply(clean_price).astype(float)
 df["Roczny przebieg"] = df.apply(calculate_yearly_mileage, axis=1)
 df["Hashcode"] = df.apply(generate_hashcode, axis=1)
 df["Wiek"] = 2025 - df["Rok produkcji"]
-df = df.drop_duplicates(subset=["Hashcode"])
 
+
+mask_vin_empty = df["Numer VIN"].isna()
+df_vin_not_empty = df[~mask_vin_empty].drop_duplicates(subset=["Numer VIN"])
+df = pd.concat([df_vin_not_empty, df[mask_vin_empty]], ignore_index=True).copy()
+
+df = df.drop_duplicates(subset=["Hashcode"])
 
 rental_mask = df.apply(is_a_rental, axis=1)
 df = df[~rental_mask]
@@ -72,8 +77,7 @@ df = df[
 ]
 
 df.drop(columns=[ "Hashcode", "Rok produkcji", "ID", "Znalezione o", "Numer VIN",
-                  "Tytuł", "Opis", "Link", "Lokalizacja", "Stan techniczny", "Roczny przebieg"], inplace=True)
-
+                  "Tytuł", "Opis", "Link", "Lokalizacja", "Stan techniczny"], inplace=True)
 
 #wypełnienie "dopuszczalnych" braków
 

@@ -5,7 +5,7 @@ import joblib
 import pandas as pd
 
 cars = pd.read_csv('../datasets/cars_cleaned.csv')
-loaded_model = joblib.load("model_pipeline.joblib")
+loaded_model = joblib.load("../pricing/model_pipeline.joblib")
 
 
 def get_column_values(name):
@@ -33,7 +33,6 @@ def predict_price():
         "Roczny przebieg": int(przebieg_var.get()) / (2025.35 - int(rok_var.get())),
         "Wiek": 2025 - int(rok_var.get()),
         }
-
         auto = pd.DataFrame([dane])
         wynik = f"Wycena: {loaded_model.predict(auto)[0].astype(int)} zł"
         wynik_label.config(text=wynik)
@@ -77,19 +76,19 @@ create_combobox("Producent", "Producent", producent_var)
 create_combobox("Model", "Model", model_var)
 create_combobox("Napęd", "Napęd", naped_var)
 create_combobox("Nadwozie", "Typ nadwozia", nadwozie_var)
-create_numerical_input("Przebieg (km)", przebieg_var)
-create_numerical_input("Pojemność silnika (cm^3)", poj_silnik_var)
-create_numerical_input("Moc silnika", moc_var)
-create_combobox("Skrzynia biegów", "Skrzynia biegów",skrzynia_var)
-create_combobox("Kraj pochodzenia", "Kraj pochodzenia", kraj_var)
-ttk.Label(root, text="Rok produkcji:").pack()
-rok_spinbox = tk.Spinbox(root, from_=1990, to=2025, textvariable=rok_var)
-rok_spinbox.pack()
 create_combobox("Kierownica", "Kierownica", kierownica_var)
 create_combobox("Województwo", "Województwo", wojewodztwo_var)
 create_combobox("Rodzaj ogłoszenia", "Rodzaj ogłoszenia", ogloszenie_var)
 create_combobox("Kolor", "Kolor", kolor_var)
 create_combobox("Paliwo", "Paliwo", paliwo_var)
+create_combobox("Skrzynia biegów", "Skrzynia biegów",skrzynia_var)
+create_combobox("Kraj pochodzenia", "Kraj pochodzenia", kraj_var)
+create_numerical_input("Przebieg (km)", przebieg_var)
+create_numerical_input("Pojemność silnika (cm^3)", poj_silnik_var)
+create_numerical_input("Moc silnika", moc_var)
+ttk.Label(root, text="Rok produkcji:").pack()
+rok_spinbox = tk.Spinbox(root, from_=1990, to=2025, textvariable=rok_var)
+rok_spinbox.pack()
 check = ttk.Checkbutton(root, text="Cena do negocjacji", variable=negocjacja_var)
 check.pack(pady=10)
 ttk.Button(root, text="Wyceń", command=predict_price).pack(pady=10)
